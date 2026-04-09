@@ -1,261 +1,250 @@
-# 🧪 COMPLETE BEGINNER LAB: Jenkins + GitHub + Flask + Docker (Step-by-Step)
+# Jenkins CI/CD Pipeline using Docker and GitHub
 
 ## 🎯 Objective
-This lab is designed for absolute beginners. By the end, you will:
-- Build a simple Python Flask web app
-- Write test cases using pytest
-- Push code to GitHub
-- Run Jenkins inside Docker Desktop
-- Connect GitHub with Jenkins using Webhooks
-- Automate builds on every git push
+
+To demonstrate a complete CI/CD pipeline using:
+
+* Jenkins (running in Docker)
+* Docker (for containerization)
+* GitHub (for source code management)
+* Flask (simple web application)
 
 ---
 
-# 🧩 PART 1: What is Each Tool? (Basic Understanding)
+# 🔷 Part 1: Jenkins Setup in Docker
 
-## 🔹 Flask
-A lightweight Python framework used to build web applications.
+## Step 1: Run Jenkins Container
 
-## 🔹 Git & GitHub
-- Git → Version control tool
-- GitHub → Cloud platform to store code
+```bash
+docker run -d ^
+-p 8080:8080 -p 50000:50000 ^
+-v jenkins_home:/var/jenkins_home ^
+-v /var/run/docker.sock:/var/run/docker.sock ^
+--name jenkins-container ^
+jenkins/jenkins:lts
+```
 
-## 🔹 Jenkins
-Automation tool used for CI/CD (Continuous Integration)
+## Step 2: Access Jenkins
 
-## 🔹 Docker Desktop
-Runs containers (lightweight virtual environments)
+Open browser:
 
-## 🔹 ngrok
-Tool to expose your local Jenkins to the internet
+```
+http://localhost:8080
+```
+
+## Step 3: Get Initial Password
+
+```bash
+docker exec jenkins-container cat /var/jenkins_home/secrets/initialAdminPassword
+```
+
+## Step 4: Install Plugins
+
+* Choose: **Install Suggested Plugins**
 
 ---
 
-# 🧩 PART 2: Create Flask Application
+# 🔷 Part 2: Install Docker in Jenkins Container
 
-## 📄 Step 1: app.py
+## Step 1: Enter Jenkins Container
+
+```bash
+docker exec -u root -it jenkins-container bash
+```
+
+## Step 2: Install Docker CLI
+
+```bash
+apt update
+apt install -y docker.io
+```
+
+## Step 3: Verify Docker
+
+```bash
+docker --version
+docker ps
+```
+
+---
+
+# 🔷 Part 3: Fix Docker Permission Issue
+
+```bash
+chmod 666 /var/run/docker.sock
+```
+
+## Verify Access
+
+```bash
+docker exec -it jenkins-container docker ps
+```
+
+---
+
+# 🔷 Part 4: Create GitHub Project
+
+## Project Structure
+
+```
+jenkins-ci-cd-demo/
+│
+├── app.py
+├── requirements.txt
+├── Dockerfile
+├── Jenkinsfile
+└── README.md
+```
+
+---
+
+# 🔷 Part 5: Application Code
+
+## app.py
+
 ```python
 from flask import Flask
 
-# Create Flask app
 app = Flask(__name__)
 
-# Define route (homepage)
-@app.route("/")
+@app.route('/')
 def home():
-    return "Hello, Jenkins Pipeline!"
+    return "Hello Students! CI/CD Pipeline is Working 🚀"
 
-# Run server
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
 ```
-
-### 🧠 Explanation
-- Flask() → creates app
-- @app.route("/") → homepage URL
-- function returns text to browser
-- host 0.0.0.0 → accessible from outside container
 
 ---
 
-## 📄 Step 2: test_app.py
-```python
-from app import app
+## requirements.txt
 
-def test_home():
-    client = app.test_client()
-    response = client.get("/")
-    assert response.status_code == 200
-    assert b"Hello, Jenkins Pipeline!" in response.data
-```
-
-### 🧠 Explanation
-- test_client() → simulates browser
-- assert → checks correctness
-
----
-
-## 📄 Step 3: requirements.txt
 ```
 flask
-pytest
 ```
 
 ---
 
-## 📄 Step 4: Dockerfile
+# 🔷 Part 6: Docker Configuration
+
+## Dockerfile
+
 ```dockerfile
 FROM python:3.9-slim
+
 WORKDIR /app
-COPY . .
+
+COPY requirements.txt .
 RUN pip install -r requirements.txt
+
+COPY . .
+
 EXPOSE 5000
+
 CMD ["python", "app.py"]
 ```
 
 ---
 
-# 🧩 PART 3: GitHub Setup
+# 🔷 Part 7: Jenkins Pipeline
 
-## 🔧 Commands
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git remote add origin https://github.com/<username>/<repo>.git
-git branch -M main
-git push -u origin main
-```
+## Jenkinsfile
 
----
-
-# 🧩 PART 4: Run Jenkins using Docker Desktop
-
-## Step 1: Pull Jenkins Image
-```bash
-docker pull jenkins/jenkins:lts
-```
-
-## Step 2: Run Jenkins Container
-```bash
-docker run -d -p 8080:8080 -p 50000:50000 --name jenkins jenkins/jenkins:lts
-```
-
-## Step 3: Get Initial Password
-```bash
-docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
-```
-
-## Step 4: Open Jenkins
-Open browser:
-http://localhost:8080
-
----
-
-# 🧩 PART 5: Install ngrok (From Scratch)
-
-## Step 1: Download ngrok
-Go to official website:
-https://ngrok.com/download
-
-## Step 2: Extract ZIP file
-
-## Step 3: Run ngrok
-```bash
-ngrok http 8080
-```
-
-## Step 4: Copy URL
-Example:
-https://abc123.ngrok.io
-
----
-
-# 🧩 PART 6: Jenkins Pipeline
-
-## 📄 Jenkinsfile
 ```groovy
 pipeline {
     agent any
 
-    triggers {
-        githubPush()
-    }
-
     stages {
 
-        stage('Checkout') {
+        stage('Build Docker Image') {
             steps {
-                git 'https://github.com/<username>/<repo>.git'
+                sh 'docker build -t flask-demo-app .'
             }
         }
 
-        stage('Install') {
+        stage('Run Container') {
             steps {
-                sh '''
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install -r requirements.txt
-                '''
+                sh 'docker rm -f flask-container || true'
+                sh 'docker run -d -p 5000:5000 --name flask-container flask-demo-app'
             }
         }
-
-        stage('Test') {
-            steps {
-                sh '''
-                . venv/bin/activate
-                pytest
-                '''
-            }
-        }
-
-        stage('Build Docker') {
-            steps {
-                sh 'docker build -t flask-app .'
-            }
-        }
-    }
-
-    post {
-        success { echo "SUCCESS" }
-        failure { echo "FAILED" }
-        always { echo "DONE" }
     }
 }
 ```
 
 ---
 
-# 🧩 PART 7: GitHub Webhook
+# 🔷 Part 8: Jenkins Job Configuration
 
-Go to:
-Repo → Settings → Webhooks → Add
+1. Open Jenkins Dashboard
+2. Click **New Item**
+3. Enter name: `jenkins-pipeline`
+4. Select **Pipeline**
+5. Click OK
 
-Payload URL:
-http://<ngrok-url>/github-webhook/
+## Configure:
 
-Content Type:
-application/json
-
----
-
-# 🧩 PART 8: Jenkins Configuration
-
-- Create Pipeline Job
-- Select "Pipeline script from SCM"
-- Enable:
-GitHub hook trigger for GITScm polling
+* Definition: Pipeline script from SCM
+* SCM: Git
+* Repository URL: Your GitHub repo URL
+* Branch: */main
+* Script Path: Jenkinsfile
 
 ---
 
-# 🧩 PART 9: Demo
+# 🔷 Part 9: Run Pipeline
 
-```bash
-git add .
-git commit -m "trigger test"
-git push origin main
+Click:
+
+```
+Build Now
 ```
 
-Observe Jenkins auto build.
+---
+
+# 🔷 Part 10: Output
+
+Open browser:
+
+```
+http://localhost:5000
+```
+
+## Expected Output
+
+```
+Hello Students! CI/CD Pipeline is Working 🚀
+```
 
 ---
 
-# ⚠️ Troubleshooting
+# 🎓 Key Learning Outcomes
 
-| Problem | Solution |
-|--------|--------|
-| Jenkins not accessible | Check Docker running |
-| ngrok not working | Restart ngrok |
-| Webhook failed | Check URL |
-| pytest error | install dependencies |
+* Understand CI/CD pipeline
+* Integrate GitHub with Jenkins
+* Build Docker images automatically
+* Deploy applications using containers
 
 ---
 
-# 🚀 Final Output
+# 🔥 Common Errors & Fixes
 
-You have successfully built:
-- Flask App
-- Docker Image
-- Jenkins Pipeline
-- GitHub Integration
-- Auto Trigger CI/CD
+| Error             | Cause                | Fix                             |
+| ----------------- | -------------------- | ------------------------------- |
+| docker not found  | Docker not installed | Install docker inside container |
+| permission denied | Socket issue         | chmod 666 /var/run/docker.sock  |
+| branch not found  | master vs main       | Use main branch                 |
+
+---
+
+# 🚀 Conclusion
+
+This experiment demonstrates a complete CI/CD workflow where:
+
+* Code is stored in GitHub
+* Jenkins automates build and deployment
+* Docker ensures consistent execution environment
+
+---
+
+**End of Lab Manual**
