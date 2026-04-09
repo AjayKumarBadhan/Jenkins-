@@ -16,12 +16,7 @@ To demonstrate a complete CI/CD pipeline using:
 ## Step 1: Run Jenkins Container
 
 ```bash
-docker run -d ^
--p 8080:8080 -p 50000:50000 ^
--v jenkins_home:/var/jenkins_home ^
--v /var/run/docker.sock:/var/run/docker.sock ^
---name jenkins-container ^
-jenkins/jenkins:lts
+docker run -d -p 8080:8080 -p 50000:50000 -v jenkins_home:/var/jenkins_home -v /var/run/docker.sock:/var/run/docker.sock --name jenkins-container jenkins/jenkins:lts
 ```
 
 ## Step 2: Access Jenkins
